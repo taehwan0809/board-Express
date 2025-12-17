@@ -44,6 +44,22 @@ new MongoClient(url).connect().then((client) =>{
 })
 // db 연결
 
+function nullCheck(req,res,next){
+    if(!req.body.username||!req.body.password){
+        res.send('빈칸 금지여')
+    }else{
+        next()
+    }
+}
+
+
+function time(req,res,next){
+    const myTime = new Date();
+    console.log(`현재 시간은 ${myTime}`)
+    next()
+}
+
+app.use('/list', time)
 
 app.get("/", (요청, 응답) => {
     응답.render("index.ejs");
@@ -206,7 +222,7 @@ app.get('/signup', async(req,res)=>{
     res.render('sign.ejs')
 })
 
-app.post('/signup', async(req,res)=>{
+app.post('/signup',nullCheck, async(req,res)=>{
     try{
     const check = await db.collection('user').findOne({username: req.body.username})
     if(!check){
@@ -235,7 +251,7 @@ app.get('/login', async(req,res)=>{
 })
 
                         
-app.post('/login', async(req,res, next)=>{
+app.post('/login',nullCheck, async(req,res, next)=>{
     passport.authenticate('local', (error, user, info)=>{
         if(error) return res.status(500).json(error)
         if(!user) return res.status(401).json((info.message))

@@ -71,12 +71,15 @@ app.get('/write', (req,res) =>{
 app.post('/new', async(req, res) => {
     
     try{
+        if(!req.user){
+            res.send('로그인 후 작성 부탁해요⭐')
+        }else{
         if(req.body.title == '', req.body.content==''){
         res.send('똑바로 써라.');
         }
         else{
         await db.collection('post').insertOne({title: req.body.title, content: req.body.content});
-        res.redirect('/list')
+        res.redirect('/list')}
     } 
     }catch(e){ 
         console.log(e) 
@@ -207,11 +210,15 @@ app.post('/signup', async(req,res)=>{
     try{
     const check = await db.collection('user').findOne({username: req.body.username})
     if(!check){
-    let hash = await bcrypt.hash(req.body.password, 10)
-    await db.collection('user').insertOne({username: req.body.username, password: hash})
-    .then(()=>{
-        res.redirect('/')
-    })
+        if(req.body.password == req.body.checkword){
+        let hash = await bcrypt.hash(req.body.password, 10)
+        await db.collection('user').insertOne({username: req.body.username, password: hash})
+        .then(()=>{
+            res.redirect('/')
+        })
+        }else{
+            res.send('비번 틀림.')
+        }
     }else{
         res.send("<script>alert('이미 있습니다.'); window.location.replace('/signup');</script>")
     }

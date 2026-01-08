@@ -9,6 +9,31 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const bcrypt = require('bcrypt');
 const MongoStore = require('connect-mongo').default;
+const{S3Client} = require('@aws-sdk/client-s3');
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+const connectDB = require('./database.js');
+const test = require('./routes/shop.js');
+const boards = require('./routes/board_sub.js')
+const router = require('express').Router();
+const s3 = new S3Client({
+    region: 'ap-northeast-2',
+    credentials:{
+        accessKeyId: process.env.ACCESSKEYID,
+        secretAccessKey: process.env.ACCESSKEYPW
+    }
+})
+
+
+const upload = multer({
+    storage: multerS3({
+        s3: s3,
+        bucket: 'student20708-prj-s3',
+        key: function(req,file,cb){
+            cb(null, Date.now().toString())
+        }
+    })
+})
 
 app.use(methodOverride('_method'))
 app.use(express.static(__dirname + '/public'))
@@ -31,9 +56,9 @@ app.use(session({
 }))
 app.use(passport.session())
 
+
 let db;
-const url = process.env.MONGOURL;
-new MongoClient(url).connect().then((client) =>{
+connectDB.then((client) =>{
     console.log('DB연결성공')
     db = client.db('forum');
     app.listen(8080, () => {
@@ -59,7 +84,7 @@ function time(req,res,next){
     next()
 }
 
-app.use('/list', time)
+// app.use('/list', time)
 
 app.get("/", (요청, 응답) => {
     응답.render("index.ejs");
@@ -71,6 +96,15 @@ app.get('/list', async (req, res) => {
     res.render('list.ejs', {posts: r})
 })
 // 글 리스트
+
+app.get('/search', async(req,res)=>{
+    let result = await db.collection('post')
+    .find({$text: {$search : '안녕'}}).toArray()
+    res.render('search.ejs', {posts : result})
+})
+
+
+
 
 app.get('/time', (req, res) => {
     t = new Date()
@@ -84,8 +118,10 @@ app.get('/write', (req,res) =>{
 // 작성
 
 
-app.post('/new', async(req, res) => {
+app.post('/new', upload.single('img1'), async(req, res) => {
     
+
+
     try{
         if(!req.user){
             res.send('로그인 후 작성 부탁해요⭐')
@@ -94,7 +130,8 @@ app.post('/new', async(req, res) => {
         res.send('똑바로 써라.');
         }
         else{
-        await db.collection('post').insertOne({title: req.body.title, content: req.body.content});
+        await db.collection('post').insertOne(
+            {title: req.body.title, content: req.body.content, img: req.file.location});
         res.redirect('/list')}
     } 
     }catch(e){ 
@@ -121,37 +158,19 @@ app.get('/detail/:legend', async (req, res) => {
 })
 // 상세 창
 
-
-app.get('/updatee/:id', async (req,res)=>{
-    let a = await db.collection('post').findOne({_id: new ObjectId(req.params.id)});
-
-    res.render('update.ejs', {updatId: a})
-
-})
-//수정 
-
-app.put('/updatShit/:skrr', async (req, res) =>{
-
-            try{
-                const before = await db.collection('post').findOne({_id: new ObjectId(req.params.skrr)})
-                if(before.title == req.body.title && before.content == req.body.content){
-                    res.send('수정할 게 없는데용?')
-                }else{
-                    await db.collection('post').updateOne({_id: new ObjectId (req.params.skrr)},{$set:{title: req.body.title, content: req.body.content}});
-                    res.redirect('/list')
-                }
-            }catch(e){
-                res.status(400).send('똑바로 안 해?')
-            }
-})
-// 수정 넣기
+const update = require('./routes/update.js');
+app.use('/update', update)
 
 
-app.delete('/delete', async(req,res)=>{
-    await db.collection('post').deleteOne({_id:new ObjectId(req.query.docid)})
-    res.send('삭제완료');
-})
-// 삭제
+
+
+app.use('/delete', require('./routes/delete.js'));
+
+// app.delete('/delete', async(req,res)=>{
+//     await db.collection('post').deleteOne({_id:new ObjectId(req.query.docid)})
+//     res.send('삭제완료');
+// })
+// // 삭제
 
 
 
@@ -272,3 +291,10 @@ app.get('/mypage', async(req,res)=>{
     res.render('myPage.ejs', {userInfo:req.user})
     }
 })
+
+
+
+
+app.use('/',test)
+
+app.use('/board/sub', boards)

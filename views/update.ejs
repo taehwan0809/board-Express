@@ -8,7 +8,7 @@
 <body>
     <%- include ('nav.ejs')%>
 
-    <form action="/updatShit/<%=updatId._id%>?_method=PUT" method="post">
+    <form action="/update/<%=updatId._id%>?_method=PUT" method="post">
     <h4>수정해라.</h4>
     <input type="text" value="<%=updatId.title%>" name="title">
     <input type="text" value="<%=updatId.content%>" name="content">

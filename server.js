@@ -98,8 +98,16 @@ app.get('/list', async (req, res) => {
 // 글 리스트
 
 app.get('/search', async(req,res)=>{
+    let term = [
+        {$search:{
+            index: 'title_index',
+            text: {query: req.query.val, path: 'title'}
+            }
+        },
+        {$sort : {_id : 1}}
+    ]
     let result = await db.collection('post')
-    .find({$text: {$search : '안녕'}}).toArray()
+    .aggregate(term).toArray()
     res.render('search.ejs', {posts : result})
 })
 
@@ -131,7 +139,7 @@ app.post('/new', upload.single('img1'), async(req, res) => {
         }
         else{
         await db.collection('post').insertOne(
-            {title: req.body.title, content: req.body.content, img: req.file.location});
+            {title: req.body.title, content: req.body.content});
         res.redirect('/list')}
     } 
     }catch(e){ 

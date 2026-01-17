@@ -16,7 +16,7 @@
         document.querySelector('.search-send').addEventListener('click', function
         (){
             let searchBox = document.querySelector('.search').value
-            location.href = '/search?val=' + searchBox
+            location.href = '/search?val=' + searchBox +'&page=' + 1
         })
     </script>
 
@@ -49,8 +49,7 @@
 
     })
 }
-
-
+</script>
 
 </body>
 </html>

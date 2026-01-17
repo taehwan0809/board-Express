@@ -98,6 +98,8 @@ app.get('/list', async (req, res) => {
 // 글 리스트
 
 app.get('/search', async(req,res)=>{
+
+    
     let term = [
         {$search:{
             index: 'title_index',
@@ -108,6 +110,7 @@ app.get('/search', async(req,res)=>{
     ]
     let result = await db.collection('post')
     .aggregate(term).toArray()
+    console.log(result._id)
     res.render('search.ejs', {posts : result})
 })
 

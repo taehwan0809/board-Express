@@ -16,6 +16,11 @@ const connectDB = require('./database.js');
 const test = require('./routes/shop.js');
 const boards = require('./routes/board_sub.js')
 const router = require('express').Router();
+const {createServer} = require('http');
+const {Server} = require('socket.io');
+const server = createServer(app);
+const io = new Server(server);
+const path = require('path')
 const s3 = new S3Client({
     region: 'ap-northeast-2',
     credentials:{
@@ -36,15 +41,13 @@ const upload = multer({
 })
 
 app.use(methodOverride('_method'))
-app.use(express.static(__dirname + '/public'))
+app.use(express.static(path.join(__dirname, 'public')))
 app.set('view engine', 'ejs')
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
 
-
-app.use(passport.initialize());
-app.use(session({
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET, //암호화 할 때 쓸 비번
     resave: false, //요청할 때마다 갱신할 건지
     saveUninitialized : false, //로그인 안 해도 세션 만들 건지
@@ -53,15 +56,25 @@ app.use(session({
         mongoUrl : process.env.MONGOURL,
         dbName : 'forum',
     })
-}))
+})
+
+
+app.use(passport.initialize());
+app.use(sessionMiddleware);
 app.use(passport.session())
 
 
 let db;
+let changeStream
 connectDB.then((client) =>{
     console.log('DB연결성공')
     db = client.db('forum');
-    app.listen(8080, () => {
+            let filter = [
+            {$match : {operationType: 'insert'}}
+        ]
+
+    changeStream = db.collection('post').watch(filter);
+    server.listen(8080, () => {
     console.log('http://localhost:8080 에서 서버 실행중')
 })
 }).catch((err)=>{
@@ -142,7 +155,12 @@ app.post('/new', upload.single('img1'), async(req, res) => {
         }
         else{
         await db.collection('post').insertOne(
-            {title: req.body.title, content: req.body.content});
+            {
+                title: req.body.title,
+                content: req.body.content,
+                user: req.user._id,
+                username:req.user.username 
+            });
         res.redirect('/list')}
     } 
     }catch(e){ 
@@ -276,7 +294,6 @@ app.post('/signup',nullCheck, async(req,res)=>{
 
 
 app.get('/login', async(req,res)=>{
-    console.log(req.user)
     res.render('login.ejs')
 })
 
@@ -304,6 +321,80 @@ app.get('/mypage', async(req,res)=>{
 })
 
 
+app.get('/chat/request', async(req,res)=>{
+    await db.collection('chat').insertOne({
+        member: [new ObjectId(req.user._id), new ObjectId(req.query.writerId)],
+        date: new Date()
+    });
+    res.redirect('/chat/list');
+})
+
+app.get('/chat/list', async(req,res)=>{
+    const posts = await db.collection('chat').find({member: req.user._id}).toArray();
+    res.render('chatList.ejs', {posts:posts})
+})
+
+
+
+
+
+
+
+
+
+
+
+
+app.get('/chat/detail/:id', async(req,res)=>{
+    
+    let result = await db.collection('chat').findOne({_id: new ObjectId(req.params.id)})
+    let real = result.member[0];
+
+    if(real.toString() !== req.user._id.toString()){
+        res.send("니 누구냐.")
+    }else{
+        res.render('chatDetail.ejs', {result:result});
+    }
+    
+})
+
+io.engine.use(sessionMiddleware);
+
+
+io.on('connection', (socket)=>{
+
+    const session = socket.request.session.passport.user.id;
+
+    socket.on('ask-join', (data)=>{
+        if(session != data.user){
+            res.send("접근 금지.")
+        }else{
+            socket.join(data.room)
+        }
+    })
+
+    socket.on('message', (data)=>{
+        io.to(data.room).emit('broadcast',data.msg)
+    })
+
+
+})
+
+app.get('/stream/list', (req,res)=>{
+    res.writeHead(200, {
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+    })
+
+
+        changeStream.on('change', (result)=>{
+            res.write('event: msg\n')
+            res.write(`data: ${JSON.stringify(result.fullDocument)}\n\n`)
+        })
+
+    
+})
 
 
 app.use('/',test)

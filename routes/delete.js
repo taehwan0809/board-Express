@@ -11,7 +11,7 @@ connectDB.then((client) =>{
 })
 
 router.delete('/', async(req,res)=>{
-    await db.collection('post').deleteOne({_id:new ObjectId(req.query.docid)})
+    await db.collection('post').deleteOne({_id:new ObjectId(req.query.docid), user: new ObjectId(req.user._id)})
     res.send('삭제 완료')
 })
 

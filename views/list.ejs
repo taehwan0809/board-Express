@@ -28,6 +28,7 @@
                 <h4><a href="/detail/<%= posts[i]._id %>"><%= posts[i].title %></a></h4>
                 <button class="skr"><a href="/update/<%= posts[i]._id %>">욜</a></button>
                 <button class="delete" data-id="<%=posts[i]._id%>">👹</button>
+                <button class="chat"><a href="/chat/request?writerId=<%=posts[i].user%>">💬</a></button>
             </div>
             <p><%= posts[i].content %></p>
         </div>
@@ -79,6 +80,16 @@ button.addEventListener('click', change)
         
     // })
     
+</script>
+
+<script>
+    let eventSource = new EventSource('/stream/list')
+    eventSource.addEventListener('msg', function(e){
+        let it = JSON.parse(e.data)
+        console.log(e.data)
+
+        document.querySelector('.white-bg').insertAdjacentHTML('afterbegin', `<div class="list-box"><h4>${it.title}</h4></div>`)
+    })
 </script>
 </body>
 </html>

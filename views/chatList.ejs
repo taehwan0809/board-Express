@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/main.css" />
+</head>
+<body class = "grey-bg">
+
+    <%- include('nav.ejs') %>
+
+    <div class="white-bg">
+        <% for (let i = 0; i < posts.length; i++){ %>
+        <div class="list-box">
+            <div class="gang">
+                <h4><a href="/chat/detail/<%= posts[i]._id %>">채팅방 <%=i%></a></h4>
+                <button class="chat"><a href="/chat/<%=posts[i].parentId%>">💬</a></button>
+            </div>
+        </div>
+        <% } %>
+    </div>
+
+<script>
+
+    
+</script>
+</body>
+</html>
